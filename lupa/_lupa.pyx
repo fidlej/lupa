@@ -763,6 +763,20 @@ def as_itemgetter(obj):
     wrap._type_flags = OBJ_AS_INDEX
     return wrap
 
+
+cdef void *testudata(lua_State *L, int ud, const_char_ptr tname):
+    """Returns NULL or the result from luaL_checkudata().
+    """
+    cdef void *p = lua.lua_touserdata(L, ud)
+    if p != NULL:
+      if lua.lua_getmetatable(L, ud):
+          lua.lua_getfield(L, lua.LUA_REGISTRYINDEX, tname)
+          if lua.lua_rawequal(L, -1, -2):
+                lua.lua_pop(L, 2)
+                return p
+    return NULL
+
+
 cdef object py_from_lua(LuaRuntime runtime, lua_State *L, int n):
     cdef size_t size = 0
     cdef const_char_ptr s
@@ -787,7 +801,7 @@ cdef object py_from_lua(LuaRuntime runtime, lua_State *L, int n):
     elif lua_type == lua.LUA_TBOOLEAN:
         return lua.lua_toboolean(L, n)
     elif lua_type == lua.LUA_TUSERDATA:
-        py_obj = <py_object*>lua.luaL_checkudata(L, n, POBJECT) # FIXME: doesn't return on error!
+        py_obj = <py_object*>testudata(L, n, POBJECT)
         if py_obj:
             return <object>py_obj.obj
     elif lua_type == lua.LUA_TTABLE:
